@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"url/types"
+
+	_ "github.com/lib/pq"
 )
 
 type Postgres struct {
@@ -15,7 +17,7 @@ type Postgres struct {
 
 func NewPostgres() *Postgres {
 	return &Postgres{
-		connStr:     "user=postgres password=postgres dbname=postgres sslmode=disable",
+		connStr:     "host=localhost port=5432 user=postgres password=postgres dbname=postgres sslmode=disable",
 		queryGet:    "select full_url from urls where short_url = $1",
 		queryInsert: "insert into urls (full_url, short_url) values ($1, $2) returning short_url",
 	}

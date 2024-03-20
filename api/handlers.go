@@ -1,9 +1,8 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
-	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -31,9 +30,9 @@ func generateUniqieUrl(template string) string {
 func (s *Server) GetURL(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.Path[1:]
 	if url == "" {
-		//обработать данный момент с null == url
 		log.Println("Url can't be empty")
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Url can't be empty"))
 		return
 	}
 	response, err := s.storage.GetURL(url)
@@ -54,26 +53,30 @@ func (s *Server) GetURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) CreateShortURL(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("post")
-	url := r.URL.Path[1:]
-	connStr := "host=localhost port=5432 user=postgres password=postgres dbname=postgres sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
+
+	defer r.Body.Close()
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Println("db error")
-		fmt.Println(err.Error())
+		log.Println(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error while reading body of request"))
 		return
 	}
-	defer db.Close()
-
-	template := letters + url
-
-	uniqueUrl := generateUniqieUrl(template)
-
-	res, err := db.Exec("insert into urls (full_url, short_url) values ($1, $2)", url, uniqueUrl)
-	if err != nil {
-		log.Println("insertin err")
-		fmt.Println(err.Error())
+	fullURL := string(data)
+	shortURL := generateUniqieUrl(letters + fullURL)
+	response, er := s.storage.CreateShortURL(fullURL, shortURL)
+	if er != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(er.Status)
+		jsonResp, er := json.Marshal(er)
+		if er != nil {
+			log.Println("Error while marshaling json")
+			return
+		}
+		w.Write(jsonResp)
 		return
 	}
-	_ = res
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("http://localhost:8080/" + response))
 }
