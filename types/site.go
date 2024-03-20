@@ -1,4 +1,4 @@
-package models
+package types
 
 type Site struct {
 	ID       string `json:"id"`
