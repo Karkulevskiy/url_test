@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -23,6 +24,44 @@ func NewMemoryStorage(memoryDbFileName string) *MemoryStorage {
 	}
 }
 
+// Метод, для проверки, что полный URL уже есть в БД, тогда нам не нужно добавлять новую запись в БД
+func (s *MemoryStorage) IsFullUrlExists(fullUrl string) (bool, string, *types.ResponseError) {
+	file, err := os.OpenFile(s.memoryDbFileName, os.O_RDONLY, 0666)
+	if err != nil {
+		log.Println(err.Error())
+		return false, "", &types.ResponseError{
+			Message: "OpenFile error",
+			Status:  http.StatusInternalServerError,
+		}
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		// Каждую строчку считаем построчно и разделяем по спец. символу - пробелу
+		data := strings.Split(scanner.Text(), " ")
+		// Пока считываем с файла, будем добавлять во временное хранилище
+		s.memoryDb[data[0]] = data[1]
+		// Если мы во временное хранилище положили уже больше миллиона записей, то очистим хранилище
+		// Чтобы не использовалось слишком много памяти
+		if len(s.memoryDb) > 1000000 {
+			s.memoryDb = make(map[string]string)
+		}
+
+		if data[1] == data[0] {
+			return false, data[0], nil
+		}
+	}
+	if scanner.Err() != nil {
+		log.Println(scanner.Err())
+		return false, "", &types.ResponseError{
+			Message: "Scanner error",
+			Status:  http.StatusInternalServerError,
+		}
+	}
+	// Если полного URL не найдено, то такой ссылки еще не было в бд
+	return true, "", nil
+}
+
 // Метод для получения полного URL
 // В параметры метода передается короткий URL
 func (s *MemoryStorage) GetURL(url string) (string, *types.ResponseError) {
@@ -31,6 +70,7 @@ func (s *MemoryStorage) GetURL(url string) (string, *types.ResponseError) {
 		// Если URL нету в map, то будем читать построчно с файла
 		file, err := os.OpenFile(s.memoryDbFileName, os.O_RDONLY, 0666)
 		if err != nil {
+			log.Println(err.Error())
 			return "", &types.ResponseError{
 				Message: "OpenFile error",
 				Status:  http.StatusInternalServerError,
@@ -53,7 +93,7 @@ func (s *MemoryStorage) GetURL(url string) (string, *types.ResponseError) {
 			}
 		}
 		if scanner.Err() != nil {
-			log.Println("Error while scanning file")
+			log.Println(scanner.Err())
 			return "", &types.ResponseError{
 				Message: "Scanner error",
 				Status:  http.StatusInternalServerError,
@@ -74,7 +114,7 @@ func (s *MemoryStorage) GetURL(url string) (string, *types.ResponseError) {
 // В параметры метода передадим полный и короткий URL сайта
 func (s *MemoryStorage) CreateShortURL(fullURL, shortURL string) (string, *types.ResponseError) {
 	// Откроем файл на чтение и запись
-	file, err := os.OpenFile(s.memoryDbFileName, os.O_RDWR, 0666)
+	file, err := os.OpenFile(s.memoryDbFileName, os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		log.Println("Error while opening inMemoryDb")
 		return "", &types.ResponseError{
@@ -83,40 +123,20 @@ func (s *MemoryStorage) CreateShortURL(fullURL, shortURL string) (string, *types
 		}
 	}
 	defer file.Close()
-	// Будем искать уже существующий полный URL, чтобы не делать перезапись
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		data := strings.Split(scanner.Text(), " ")
-		//Сравниваем полный URL из файла с полным URL аргументом метода
-		if data[1] == fullURL {
-			//Вернем уже сущесвтующий shortURL и добавим во временное хранилище
-			s.memoryDb[data[0]] = data[1]
-			return data[0], nil
-		}
-	}
-	// Проверим на возникновение ошибок
-	if scanner.Err() != nil {
-		log.Println("Error while searching existed URL")
-		return "", &types.ResponseError{
-			Message: "Error while searching existed URL",
-			Status:  http.StatusInternalServerError,
-		}
-	}
-	// Если мы не вышли из метода, то такой записи еще не было
-	// Тогда запишем в файл shortURL, fullURL
-	if _, err := file.WriteString(shortURL + " " + fullURL); err != nil {
+
+	if _, err := fmt.Fprintln(file, shortURL+" "+fullURL); err != nil {
 		log.Println("Error while appending new line in dbMemory")
 		return "", &types.ResponseError{
 			Message: "Error while appending new line in dbMemory",
 			Status:  http.StatusInternalServerError,
 		}
 	}
+	// Добавим во временное хранилище запись и вернем хендлеру
+	s.memoryDb[shortURL] = fullURL
 	// Если мы во временное хранилище положили уже больше миллиона записей, то очистим хранилище
 	// Чтобы не использовалось слишком много памяти
 	if len(s.memoryDb) > 1000000 {
 		s.memoryDb = make(map[string]string)
 	}
-	// Добавим во временное хранилище запись и вернем хендлеру
-	s.memoryDb[shortURL] = fullURL
 	return shortURL, nil
 }

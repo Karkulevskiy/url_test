@@ -21,11 +21,24 @@ const (
 func main() {
 	var server *api.Server
 	var db storage.Storage
-	switch os.Args[1] { // Параметры запуска
-	case "-d":
+	if len(os.Args) > 1 && os.Args[1] == "-d" {
 		db = storage.NewPostgres(connStr) // Получаем экземпляр Postgres
-	default:
-		db = storage.NewMemoryStorage(memoryDbFileName) // Создаем БД в памяти
+	} else {
+		pwd, err := os.Getwd()
+		if err != nil {
+			log.Println("Can't get working directory")
+			log.Println(err.Error())
+			return
+		}
+		path := pwd + "/" + memoryDbFileName
+		file, err := os.OpenFile(path, os.O_CREATE, 0666)
+		if err != nil{
+			log.Println("Error while creating memory DB")
+			log.Println(err.Error())
+			return
+		}
+		file.Close() 
+		db = storage.NewMemoryStorage(path) // Создаем БД в памяти
 	}
 	server = api.NewServer(listenAddr, db) // Получаем экземпляр сервера
 	fmt.Println("Server is running on port:", listenAddr)

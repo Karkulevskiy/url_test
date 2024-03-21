@@ -98,8 +98,33 @@ func (s *Server) CreateShortURL(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Error, body can't be empty"))
 		return
 	}
+
 	fullURL := string(data)
-	// Создаем уникальную URL
+
+	// Проверим, существует ли в БД уже такой полный URL
+	isUnique, shortUrl, err_ := s.storage.IsFullUrlExists(fullURL)
+
+	// Проверка, если произошла ошибка во время запроса к БД
+	if err_ != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(err_.Status)
+		jsonResp, er := json.Marshal(err_)
+		if er != nil {
+			log.Println("Error while marshaling json")
+			return
+		}
+		w.Write(jsonResp)
+		return
+	}
+
+	// Если уже полная URL, то вернем короткую ссылку
+	if !isUnique {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("http://localhost:8080/" + shortUrl))
+		return
+	}
+	//Если полного URL в БД не нашлось, то создадимя для него короткую ссылку
 	shortURL := s.generateUniqueURL(6)
 	// Проверка, что такого короткого уникального URL еще не создавали
 	resp, _ := s.storage.GetURL(shortURL)
