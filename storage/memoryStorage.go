@@ -41,8 +41,12 @@ func (s *MemoryStorage) GetURL(url string) (string, *types.ResponseError) {
 		for scanner.Scan() {
 			// Каждую строчку считаем построчно и разделяем по спец. символу - пробелу
 			data := strings.Split(scanner.Text(), " ")
+			// Если мы во временное хранилище положили уже больше миллиона записей, то очистим хранилище
+			// Чтобы не использовалось слишком много памяти
+			if len(s.memoryDb) > 1000000 {
+				s.memoryDb = make(map[string]string)
+			}
 			// Если короткий URL есть в файле, то вернем его полный URL и добавим в map
-			if len(map)
 			if data[0] == url {
 				s.memoryDb[data[0]] = data[1]
 				return data[1], nil
@@ -106,6 +110,11 @@ func (s *MemoryStorage) CreateShortURL(fullURL, shortURL string) (string, *types
 			Message: "Error while appending new line in dbMemory",
 			Status:  http.StatusInternalServerError,
 		}
+	}
+	// Если мы во временное хранилище положили уже больше миллиона записей, то очистим хранилище
+	// Чтобы не использовалось слишком много памяти
+	if len(s.memoryDb) > 1000000 {
+		s.memoryDb = make(map[string]string)
 	}
 	// Добавим во временное хранилище запись и вернем хендлеру
 	s.memoryDb[shortURL] = fullURL
