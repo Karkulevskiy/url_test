@@ -4,13 +4,13 @@ import (
 	"net/http"
 	"url/storage"
 )
-//Сервер, хранящий адрес прослушивания и БД
+// Сервер, хранящий адрес прослушивания и БД
 type Server struct {
 	listenAddr string
 	storage storage.Storage
 }
 
-//Конструктор для создания сервера
+// Конструктор для создания сервера
 // Конструктор принимает адрес прослушивания и БД (Postgres или в InMemory)
 func NewServer(listenAddr string, storage storage.Storage) *Server {
 	return &Server{
@@ -19,7 +19,7 @@ func NewServer(listenAddr string, storage storage.Storage) *Server {
 	}
 }
 
-//Метод для запуска сервера
+// Метод для запуска сервера
 func (s *Server) Start() error {
 	http.HandleFunc("/", s.requestHandler)
 	return http.ListenAndServe(s.listenAddr, nil)

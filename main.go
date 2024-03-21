@@ -11,22 +11,23 @@ import (
 )
 
 const (
-	//TCP network address
+	// TCP network address
 	listenAddr = "localhost:8080"
-	//Строка подлючения для Postgres
-	connStr = "host=localhost port=5432 user=postgres password=postgres dbname=postgres sslmode=disable"
+	// Строка подлючения для Postgres
+	connStr          = "host=localhost port=5432 user=postgres password=postgres dbname=postgres sslmode=disable"
+	memoryDbFileName = "memoryDb.txt"
 )
 
 func main() {
 	var server *api.Server
 	var db storage.Storage
-	switch os.Args[1] { //Параметры запуска
-	case "-d": 
-		db = storage.NewPostgres(connStr) //Получаем экземпляр Postgres
+	switch os.Args[1] { // Параметры запуска
+	case "-d":
+		db = storage.NewPostgres(connStr) // Получаем экземпляр Postgres
 	default:
-		db = storage.NewMemoryStorage() //Создаем БД в памяти
+		db = storage.NewMemoryStorage(memoryDbFileName) // Создаем БД в памяти
 	}
-	server = api.NewServer(listenAddr, db) //Получаем экземпляр сервера
+	server = api.NewServer(listenAddr, db) // Получаем экземпляр сервера
 	fmt.Println("Server is running on port:", listenAddr)
-	log.Fatal(server.Start()) //Запускаем сервер
+	log.Fatal(server.Start()) // Запускаем сервер
 }

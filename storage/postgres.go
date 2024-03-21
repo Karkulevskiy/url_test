@@ -11,9 +11,9 @@ import (
 
 // Структура для описания БД Postgres
 type Postgres struct {
-	connStr     string //Строка подключения к БД
-	queryGet    string //SELECT запрос к БД для получения адреса сайта
-	queryInsert string //INSERT запрос к БД для добавления адреса сайта
+	connStr     string // Строка подключения к БД
+	queryGet    string // SELECT запрос к БД для получения адреса сайта
+	queryInsert string // INSERT запрос к БД для добавления адреса сайта
 }
 
 // Констуктор для Postgres
@@ -21,15 +21,15 @@ type Postgres struct {
 func NewPostgres(connStr string) *Postgres {
 	return &Postgres{
 		connStr:     connStr,
-		queryGet:    "select full_url from urls where short_url = $1",
-		queryInsert: "insert into urls (full_url, short_url) values ($1, $2) returning short_url",
+		queryGet:    "SELECT full_url FROM urls WHERE short_url = $1",
+		queryInsert: "INSERT INTO urls (full_url, short_url) VALUES ($1, $2) RETURNING short_url",
 	}
 }
 
 // Метод, принимающий через url query короткую ссылку
 // для получения в БД полной ссылки сайта
 func (s *Postgres) GetURL(url string) (string, *types.ResponseError) {
-	//Подключение к БД
+	// Подключение к БД
 	db, err := sql.Open("postgres", s.connStr)
 	if err != nil {
 		log.Println(err.Error())
@@ -39,7 +39,7 @@ func (s *Postgres) GetURL(url string) (string, *types.ResponseError) {
 		}
 	}
 	defer db.Close()
-	//Выполнения запроса к БД
+	// Выполнения запроса к БД
 	rows, err := db.Query(s.queryGet, url)
 	if err != nil {
 		log.Println(err.Error())
@@ -50,7 +50,7 @@ func (s *Postgres) GetURL(url string) (string, *types.ResponseError) {
 	}
 	defer rows.Close()
 	var fullURL string
-	//Получение полного адреса сайта
+	// Получение полного адреса сайта
 	for rows.Next() {
 		err = rows.Scan(&fullURL)
 		if err != nil {
@@ -68,7 +68,7 @@ func (s *Postgres) GetURL(url string) (string, *types.ResponseError) {
 			Status:  http.StatusInternalServerError,
 		}
 	}
-	//Проверка, если сайт по короткому URL не найден
+	// Проверка, если сайт по короткому URL не найден
 	if fullURL == "" {
 		return "", &types.ResponseError{
 			Message: "Invalid Short url. Not Found",
@@ -81,7 +81,7 @@ func (s *Postgres) GetURL(url string) (string, *types.ResponseError) {
 // Метод, для добавления сайта к БД
 // Аргументы метода: полная и короткая ссылка
 func (s *Postgres) CreateShortURL(fullURL, shortURL string) (string, *types.ResponseError) {
-	//Подключения к БД
+	// Подключения к БД
 	db, err := sql.Open("postgres", s.connStr)
 	if err != nil {
 		log.Println(err.Error())
@@ -91,7 +91,7 @@ func (s *Postgres) CreateShortURL(fullURL, shortURL string) (string, *types.Resp
 		}
 	}
 	defer db.Close()
-	//Выполнение запроса
+	// Выполнение запроса
 	rows, err := db.Query(s.queryInsert, fullURL, shortURL)
 	if err != nil {
 		log.Println(rows.Err())
@@ -102,7 +102,7 @@ func (s *Postgres) CreateShortURL(fullURL, shortURL string) (string, *types.Resp
 	}
 	defer rows.Close()
 	var shortURLResponse string
-	//Получение короткой ссылки
+	// Получение короткой ссылки
 	for rows.Next() {
 		err = rows.Scan(&shortURLResponse)
 		if err != nil {

@@ -15,21 +15,21 @@ const setOfChars = "Ot43qYsT6ZzDABXh9S05g8PdeMwJV71lumkHFnQKboLCafUGWcN82R4Ivixy
 func (s *Server) requestHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		s.GetURL(w, r) //Был сделан GET запрос
+		s.GetURL(w, r) // Был сделан GET запрос
 	case http.MethodPost:
-		s.CreateShortURL(w, r) //Был сделан POST запрос
+		s.CreateShortURL(w, r) // Был сделан POST запрос
 	}
 }
 
 // Функция для генерации рандомного URL
 func (s *Server) generateUniqueURL(template string) string {
-	var uniqueUrl []rune
-	//Будет создан URL из 6 символов
+	var uniqueUrl []byte
+	// Будет создан URL из 6 символов
 	// Если такой короткий URL уже суещствует, то будем добавлять ему еще по 6
 	// рандомных символов, пока не создадим уникальный
 	for {
 		for i := 0; i < 6; i++ {
-			uniqueUrl = append(uniqueUrl, rune(template[rand.Intn(len(template))]))
+			uniqueUrl = append(uniqueUrl, template[rand.Intn(len(template))])
 		}
 		resp, _ := s.storage.GetURL(string(uniqueUrl))
 		if resp == "" {
@@ -40,19 +40,19 @@ func (s *Server) generateUniqueURL(template string) string {
 
 // HTTP GET Handler
 func (s *Server) GetURL(w http.ResponseWriter, r *http.Request) {
-	//Мы получаем URL сайта через строку запроса, поэтому просто возьмем ее от туда
+	// Мы получаем URL сайта через строку запроса, поэтому просто возьмем ее от туда
 	url := r.URL.Path[1:]
-	//Проверим на пустую строку
+	// Проверим на пустую строку
 	if url == "" {
 		log.Println("Url can't be empty")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Url can't be empty"))
 		return
 	}
-	//Получаем полный URL с БД
+	// Получаем полный URL с БД
 	response, err := s.storage.GetURL(url)
 	if err != nil {
-		//Если произошла ошибка, то вернем ответ об ошибке
+		// Если произошла ошибка, то вернем ответ об ошибке
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(err.Status)
 		jsonResp, err := json.Marshal(err)
@@ -63,7 +63,7 @@ func (s *Server) GetURL(w http.ResponseWriter, r *http.Request) {
 		w.Write(jsonResp)
 		return
 	}
-	//Устанавливаем Header, body для ответа
+	// Устанавливаем Header, body для ответа
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(response))
@@ -72,7 +72,7 @@ func (s *Server) GetURL(w http.ResponseWriter, r *http.Request) {
 // HTTP Handler для создания короткого короткого URL
 func (s *Server) CreateShortURL(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	//Считываем с тела запроса введенный сайт
+	// Считываем с тела запроса введенный сайт
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Println(err.Error())
@@ -90,7 +90,7 @@ func (s *Server) CreateShortURL(w http.ResponseWriter, r *http.Request) {
 	fullURL := string(data)
 	// Создаем уникальную URL
 	shortURL := s.generateUniqueURL(setOfChars)
-	//Добавим в БД новую сущность с полным и коротким URL
+	// Добавим в БД новую сущность с полным и коротким URL
 	// Проверим на ошибку
 	response, er := s.storage.CreateShortURL(fullURL, shortURL)
 	if er != nil {
@@ -104,7 +104,7 @@ func (s *Server) CreateShortURL(w http.ResponseWriter, r *http.Request) {
 		w.Write(jsonResp)
 		return
 	}
-	//Отправим ответ с соответсвующем Header, Body
+	// Отправим ответ с соответсвующем Header, Body
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("http://localhost:8080/" + response))
